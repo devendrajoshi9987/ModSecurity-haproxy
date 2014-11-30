@@ -1,0 +1,734 @@
+
+
+
+----------------------------------------------------------------------------------------
+Install Mod Security on CentOS
+----------------------------------------------------------------------------------------
+
+
+Following are the way of implimentation of Mod Security.
+
+
+Type1: 
+--------------------------------------------------------------------------------------------------------
+User ------------>
+			Mod_Security(with Apache Reverse Proxy)	---------------------> Web Server
+User ------------>
+--------------------------------------------------------------------------------------------------------
+
+
+
+Type2: 
+--------------------------------------------------------------------------------------------------------
+User ------------>				                     ---------------------> Web Server1
+				Mod_Security  + HA-Proxy	     ---------------------> Web Server2
+User ------------>					             ---------------------> Web Server3
+--------------------------------------------------------------------------------------------------------
+
+
+
+
+Type3: 
+--------------------------------------------------------------------------------------------------------
+User -------->									--------> Web Server1
+		      Mod_Security with Reverse Proxy  --------> HA-Proxy	--------> Web Server2
+User -------->									--------> Web Server3
+--------------------------------------------------------------------------------------------------------
+
+Type 3 Check once following
+
+
+   ProxyPreserveHost On
+     ProxyRequests off
+     ProxyVia Off
+     ProxyPass / http://192.168.58.44:80/
+     ProxyPassReverse / http://192.168.58.44:80/
+
+
+192.168.58.44 should be YOur HA Proxy IP
+
+
+
+
+----------------------------------------------------------------------------------------
+1) Edit Bashrc File & Paste Following Shortcut / Aliases in That
+----------------------------------------------------------------------------------------
+# vi /etc/bashrc
+
+
+#-------------------------------------
+#Naaptol CHANGES START
+#-------------------------------------
+export PATH=/opt/apache/bin:$PATH
+export PATH=/opt/mysql/bin:$PATH
+export PATH=/opt/php/bin:$PATH
+alias c='clear'
+alias df='df -Th'
+#-------------------------------------
+#Naaptol CHANGES END
+#-------------------------------------
+
+
+Then Run following command.
+
+# . /etc/bashrc
+OR
+# source /etc/bashrc
+
+
+
+----------------------------------------------------------------------------------------
+2) Stop unwamted Services or settings
+----------------------------------------------------------------------------------------
+# /etc/init.d/NetworkManager stop
+# chkconfig NetworkManager off
+Note: Make sure you have configured Network i.e. (IP Address/Netmask/Gateway/DNS)
+
+# /etc/init.d/sendmail stop
+# chkconfig sendmail off
+# vi /etc/sysconfig/selinux
+SELINUX=disabled
+
+
+
+----------------------------------------------------------------------------------------
+2) Upgrade Kernel Version
+----------------------------------------------------------------------------------------
+#yum update kernel
+
+
+Reboot The Server
+
+
+----------------------------------------------------------------------------------------
+4) Open Necessary Ports in iptables
+----------------------------------------------------------------------------------------
+# vi /etc/sysconfig/iptables
+
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 80 -j ACCEPT
+#### If U are installing Haproxy with SSL
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 443 -j ACCEPT
+
+#/etc/init.d/iptables restart
+#chkconfig iptables on
+
+
+----------------------------------------------------------------------------------------------------
+4) Install Dependencies for Apache+ModSecurity
+----------------------------------------------------------------------------------------------------
+yum install gcc
+yum install zlib
+yum install zlib-devel
+yum install openssl
+yum install openssl-devel
+yum install pcre
+yum install pcre-devel
+yum install apr
+yum install apr-devel
+yum install libxml2
+yum install libxml2-devel
+yum install expat
+yum install expat-devel
+yum install curl
+yum install curl-devel
+
+
+Note: Apache should be compile with --enable-unique-id --with-included-apr
+
+
+-------------------------------------------------------------------------------
+5) Compile APR & APR Utils
+-------------------------------------------------------------------------------
+#APR 
+mkdir /softwares
+cd /softwares
+#wget http://mirrors.axint.net/apache//apr/apr-1.4.6.tar.gz
+#tar -xvzf apr-1.4.6.tar.gz
+#cd apr-1.4.6/
+#./configure
+#make
+#make install
+#cd ..
+
+
+Note : if you get error= 
+
+rm: cannot remove `libtoolT': No such file or directory issue. then follow the steps.
+
+
+Edit your configure file
+
+vi /softwares/apr-1.4.6/configure
+Change the line
+
+    $RM "$cfgfile"
+      to
+    $RM -f "$cfgfile"
+
+
+
+# APR Utils
+
+#wget http://mirrors.axint.net/apache//apr/apr-util-1.4.1.tar.gz
+#tar -xvzf apr-util-1.4.1.tar.gz
+#cd apr-util-1.4.1
+#./configure --with-apr=/usr/local/apr
+#make
+#make install
+
+
+----------------------------------------------------------------------------------------------------
+6) Install Apache+Modsecurity (bk_waf)
+----------------------------------------------------------------------------------------------------
+
+Stop Existing Apache
+#/etc/init.d/httpd stop
+#chkconfig httpd off
+
+Download Apache
+#wget http://archive.apache.org/dist/httpd/httpd-2.2.25.tar.gz
+
+Extract Tar File
+#tar -zxvf httpd-2.2.25.tar.gz
+#cd httpd-2.2.25
+
+#./configure --prefix=/opt/apache80_waf --enable-mods-shared=all --enable-so --enable-cgi --enable-proxy --enable-headers --enable-expires --enable-vhost-alias --enable-info --enable-rewrite --enable-speling	--enable-usertrack --enable-deflate --enable-ssl --enable-mime-magic --enable-unique-id --with-included-apr
+
+#make
+#make install
+
+#vi /opt/apache80_waf/conf/httpd.conf
+Listen 80
+User apache
+Group apache
+Include conf/php.conf
+
+
+
+#cp /etc/httpd/modules/libphp5* /opt/apache80_waf/modules/
+#cp /etc/httpd/conf.d/php.conf /opt/apache80_waf/conf/
+
+#/opt/apache80_waf/bin/apachectl -k restart
+#cd ..
+#rm -rf /softwares/httpd-2.2.25
+
+
+----------------------------------------------------------------------------------------------------
+7) Install modsecurity
+----------------------------------------------------------------------------------------------------
+#cd /softwares
+#wget http://www.modsecurity.org/tarball/2.7.2/modsecurity-apache_2.7.2.tar.gz
+#tar -zxvf modsecurity-apache_2.7.2.tar.gz
+#cd modsecurity-apache_2.7.2
+#./configure --with-apxs=/opt/apache80_waf/bin/apxs --with-apr=/opt/apache80_waf/bin/apr-1-config --with-apu=/opt/apache80_waf/bin/apu-1-config
+#make
+#make CFLAGS=-DMSC_TEST test
+Note: If all tests are OK then run below command.
+#make install
+#rm -rf /softwares/modsecurity-apache_2.7.2
+
+----------------------------------------------------------------------------------------------------
+8) Download and Install ModSecurity Rules
+----------------------------------------------------------------------------------------------------
+#cd /softwares
+#wget http://pkgs.fedoraproject.org/repo/pkgs/mod_security_crs/modsecurity-crs_2.2.5.tar.gz/aaeaa1124e8efc39eeb064fb47cfc0aa/modsecurity-crs_2.2.5.tar.gz
+#tar -zxvf modsecurity-crs_2.2.5.tar.gz
+#mv modsecurity-crs_2.2.5 /opt/modsecurity-rules
+#cd /opt/modsecurity-rules
+#cp modsecurity_crs_10_setup.conf.example modsecurity_crs_10_setup.conf
+
+#vi /opt/apache80_waf/conf/httpd.conf
+LoadFile /usr/lib64/libxml2.so
+LoadFile /usr/lib64/liblua-5.1.so
+LoadModule security2_module modules/mod_security2.so
+
+
+<IfModule mod_security2.c>
+	        SecPcreMatchLimit 1000000
+	        SecPcreMatchLimitRecursion 1000000
+	        SecDataDir logs/
+</IfModule>
+
+ServerName *
+	        AddDefaultCharset UTF-8
+	 
+	        <IfModule mod_security2.c>
+	                Include /opt/modsecurity-rules/modsecurity_crs_10_setup.conf
+	                Include /opt/modsecurity-rules/base_rules/*.conf
+	 
+	                SecRuleEngine On
+	                SecRequestBodyAccess On
+	                SecResponseBodyAccess On
+	        </IfModule>
+
+   ProxyPreserveHost On
+     ProxyRequests off
+     ProxyVia Off
+     ProxyPass / http://192.168.58.44:80/
+     ProxyPassReverse / http://192.168.58.44:80/
+
+
+
+
+#/opt/apache80_waf/bin/apachectl -k restart
+
+> Verify security2_module is loaded using following command
+#/opt/apache80_waf/bin/httpd -M |  grep security2_module
+
+
+----------------------------------------------------------------------------------------------------
+9) Verify that mod_Security filtered apache traffic
+----------------------------------------------------------------------------------------------------
+Note 1: 
+> By default mod_security doesn't allow numeric address in host header, 
+> So try to access website using IP address rather than domain name, you will get "Access denied with code 403" error.
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------
+10) MSLA Mod Security Log Analyzer - GUI For Mod Security 
+----------------------------------------------------------------------------------------------------
+
+    Copy all the files inside the zip package into your server path.
+    Create a database and import the "modsec_db.sql" file into your database.
+    open config.php in a text editor and change the Database name,username,password,host and the Mod_security log path.
+    run the Parser.php from your browser ( it might take some times it depends on how big is your log file)
+    after the parser.php fully loaded and page become Done , open the index.php
+    input the username and password as following for going into the dashboard.
+    username:root25.com
+    password:ssap25
+
+    For drawing the graphs it need some times. 
+
+vi config.php
+
+$db_host="localhost"; //Mysql Database Host Address
+$db_user="modsec";   //Database Username
+$db_pass="modsec@123";       //Database Password
+$db_name="modsec_db"; //Database Name
+$file = 'modsec_audit.log';  //Mod_Security Log file path
+
+
+
+
+
+
+----------------------------------------------------------------------------------------
+11) Add Following MSLA Container to Apache Config
+----------------------------------------------------------------------------------------
+
+
+#vi /opt/apache80_waf/conf/httpd.conf
+
+### MSLA ###
+Alias /msla "/opt/apache80_waf1/htdocs/msla"
+<Directory "/opt/apache80_waf1/htdocs/msla">
+Order Allow,Deny
+Allow from All
+Options Indexes
+AllowOverride none
+DirectoryIndex index.php
+Order allow,deny
+allow from all
+</Directory>
+
+
+
+
+----------------------------------------------------------------------------------------
+12) Install Mysql for MSLA Project
+----------------------------------------------------------------------------------------
+
+
+#yum install mysql mysql-server php*
+
+
+#/etc/init.d/mysqld start
+#chkconfig mysqld on
+#mysqladmin -u root password Admin@123
+#mysql -u root -p
+mysql> CREATE DATABASE modsec_db;
+mysql> GRANT ALL PRIVILEGES ON modsec_db.* TO 'modsec'@'localhost' IDENTIFIED BY 'modsec@123';
+mysql> GRANT ALL PRIVILEGES ON modsec_db.* TO 'modsec'@'%' IDENTIFIED BY 'modsec@123';
+mysql> quit
+
+
+----------------------------------------------------------------------------------------
+13) Import MySQL dump
+----------------------------------------------------------------------------------------
+#cd /root
+#mysql --user root --password=Admin@123 modsec_db < /opt/modsec_db.sql
+#/etc/init.d/mysqld restart
+
+
+
+----------------------------------------------------------------------------------------------------------------
+Only Strucutural Backup of Mod Sec DB		(Dont Do Follow Backup activity its Practice)
+----------------------------------------------------------------------------------------------------------------
+
+mysqldump -d -u modsec -p modsec_db > file.sql
+mysqldump -umodsec -pmodsec@123 --no-data --databases modsec_db > modsec_db_structure.sql
+mysql -umodsec -pmodsec@123 < modsec_db_structure.sql
+
+----------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------------
+14) ModSecurity Information
+----------------------------------------------------------------------------------------------------------------
+What type(s) of security models does ModSecurity support?
+
+There is a common misconception that ModSecurity can only be used for negative policy enforcement. 
+This is not the case. ModSecurity does not have any default security model "out-of-the-box." 
+It is up to the user to implement appropriate rules to achieve the desired security model. 
+That being said, these are the security models which are most often employed:
+
+Negative Security Model - looks for known bad, malicious requests. 
+This method is effective at blocking a large number of automated attacks, 
+however it is not the best approach for identifying new attack vectors. 
+Using too many negative rules may also negatively impact performance.
+
+Positive Security Model - When positive security model is deployed, 
+only requests that are known to be valid are accepted, with everything else rejected. 
+This approach works best with applications that are heavily used but rarely updated.
+
+Virtual Patching - Its rule language makes ModSecurity an ideal external patching tool. 
+External patching is all about reducing the window of opportunity. 
+Time needed to patch application vulnerabilities often runs to weeks in many organizations. 
+With ModSecurity, applications can be patched from the outside, 
+without touching the application source code (and even without any access to it), 
+making your systems secure until a proper patch is produced.
+
+Extrusion Detection Model - ModSecurity can also monitor outbound data and identify and 
+block information disclosure issues such as leaking detailed error messages or Social Security Numbers or Credit Card Numbers. 
+
+
+Directives
+
+    SecFiterEngine (On|Off): enables/disables mod-security engine
+    SecFilterCheckUrlEncoding (On|Off): check if special characters where encoded before being passed in url
+    SecFilterCheckUnicodeEncoding (On|Off): check if unicode encoding is valid. Has to be Off except if you system handles Unicode.
+    SecFilterForceByteRange:  Forces requests to only contain bytes from the defined range. This can prevent stack overflow attacks. Default values 0 255 allow all bytes values.
+    SecServerSignature: Change the server signature in response headers. Note: in order to get it to work, you need apache setted with ServerTokens Full.
+    SecAuditEngine (On|Off|RelevantOnly): enable/disable mod-security logging. RelevantOnly stands for "log only request that matched a filter rule".
+    SecAuditLog /path/to/audit_log: define the file where mod-security will write its logs.
+    SecFilterDebugLog /path/to/debug_log: define where mod-security debug log will be stored.
+    SecFilterDebugLevel (0-9): mod-security has got 10 debug level. From 0 (no debug info logged) to 9 (everything logged). Most people won't use this (otherwise, you won't be reading this how-to :) ), so turn it to 0.
+    SecFilterScanPost (On|Off): by default, mod-security only scans GET datas, turning this on, you will also be able to scan POST datas (such as forms)
+    SecFilterDefaultAction ACTION: here we define the default action mod-security should take when a filter rule is matched. Here, log request and reply with a 500 Internal Server Error.
+
+
+
+Actions Keywords
+
+    pass:Allow request to continue on filter match. This action is useful when you want to log a match but otherwise do not want to take action.
+    allow:This is a stronger version of the previous filter. After this action is performed the request will be allowed through and no other filters will be tried.
+    deny:Interrupt request processing on a filter match. Unless the status action is used too, ModSecurity will immediately return a HTTP 500 error code
+    status:Use the supplied HTTP status code when request is denied.
+    redirect:On filter match redirect the user to the given URL.
+    exec:Execute a binary on filter match. Full path to the binary is required
+    log: Log filter match to the Apache error log.
+    nolog:Do not log the filter match. This will also prevent the audit logging from taking place.
+    chain: Rule chaining allows you to chain several rules into a bigger test. Only the last rule in the chain will affect the request but in order to reach it, all rules before it must be matched too.
+    auditlog/noauditlog: Log/Do not log the transaction information to the audit log.
+
+
+
+
+----------------------------------------------------------------------------------------------------
+15) Errors: 
+----------------------------------------------------------------------------------------------------
+
+If you are getting erros like
+
+[Thu Aug 07 04:22:24 2014] [notice] Apache/2.2.25 (Unix) mod_ssl/2.2.25 OpenSSL/1.0.1e-fips DAV/2 configured -- resuming normal operations
+[Thu Aug 07 04:22:29 2014] [error] [client 192.168.58.11] ModSecurity: Access denied with code 403 (phase 2). Pattern match "(?i:([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?([\\\\d\\\\w]+)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?(?:=|<=>|r?like|sounds\\\\s+like|regexp)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?\\\\2|([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\ ..." at REQUEST_COOKIES:__utmz. [file "/opt/modsecurity-rules/base_rules/modsecurity_crs_41_sql_injection_attacks.conf"] [line "77"] [id "950901"] [rev "2.2.5"] [msg "SQL Injection Attack"] [data "d=D"] [severity "CRITICAL"] [tag "WEB_ATTACK/SQL_INJECTION"] [tag "WASCTC/WASC-19"] [tag "OWASP_TOP_10/A1"] [tag "OWASP_AppSensor/CIE1"] [tag "PCI/6.5.2"] [hostname "kb.naaptol.com"] [uri "/"] [unique_id "U@NhdX8AAAEAABNiEbQAAAAA"]
+
+Then First Check What is the Rule ID: For Ex: [id "950901"]
+We can exclude this Rule ID from Our Config.
+
+
+#vi /opt/apache80_waf/conf/httpd.conf
+
+		   SecRuleEngine On
+                        SecRequestBodyAccess On
+                        SecResponseBodyAccess On
+                        SecRuleRemoveById 950901
+
+
+Like upon config we exclude Rule ID 950901 & Restart the Apache.
+
+		#################  OR #################
+
+
+Just Run Mod Security on Detection Only Mode insted of Keeping On
+
+
+
+#vi /opt/apache80_waf/conf/httpd.conf
+
+			SecRuleEngine DetectionOnly
+                        SecRequestBodyAccess On
+                        SecResponseBodyAccess On
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------
+16) Customize mod_Security Rules
+----------------------------------------------------------------------------------------------------
+Note 1:
+> Customize mod_security rules as per your need
+
+#cd /opt/modsecurity-rules
+#cp -r base_rules base_rules_backup
+#rm -rf base_rules/*
+#cp base_rules_backup/modsecurity_crs_41_xss_attacks.conf   base_rules/
+
+
+----------------------------------------------------------------------------------------------------
+17) Test with mod_Security xss attack Rules
+----------------------------------------------------------------------------------------------------
+
+> Try to access following xss attack sample code:
+
+http://IP_ADDRESS/index.html?user=<script>alert(123)</script>
+
+> You will see Forbidden error in apache error logs for xss attack as follows
+
+[Mon Dec 02 00:37:37 2013] [error] [client 172.16.16.187] ModSecurity: Access 
+denied with code 403 (phase 2). Pattern match "\\\\balert\\\\b\\\\W*?\\\\(" at 
+ARGS:user. [file "/opt/modsecurity-rules/base_rules/modsecurity_crs_41_xss_attacks.
+conf"] [line "148"] [id "958052"] [rev "2.2.5"] [msg "Cross-site Scripting (XSS) 
+Attack"] [data "alert("] [severity "CRITICAL"] [tag "WEB_ATTACK/XSS"] [tag 
+"WASCTC/WASC-8"] [tag "WASCTC/WASC-22"] [tag "OWASP_TOP_10/A2"] [tag 
+"OWASP_AppSensor/IE1"] [tag "PCI/6.5.1"] [hostname "172.16.16.17"] [uri 
+"/index.html"] [unique_id "UpuI@X8AAAEAAGwWFGsAAAAB"]
+
+
+
+
+> Comment rule number 958052 under /opt/modsecurity-rules/base_rules/modsecurity_crs_41_xss_attacks file 
+and you will be able to access http://IP_ADDRESS/index.html?user=<script>alert(123)</script> without error
+
+
+
+========================================================================================================================
+
+
+
+------------------------------------------------------------------------------------------------
+18) Writing Your Own mod_security Rules
+------------------------------------------------------------------------------------------------
+
+
+
+In this section, we'll create a rule chain which blocks the request if certain "spammy" words are entered in a HTML form. First, we'll create a PHP script which gets the input from a textbox and displays it back to the user.
+
+/var/www/form.php
+
+<html>
+    <body>
+        <?php
+            if(isset($_POST['data']))
+                echo $_POST['data'];
+            else
+            {
+        ?>
+                <form method="post" action="">
+                        Enter something here:<textarea name="data"></textarea>
+                        <input type="submit"/>
+                </form>
+        <?php
+            }
+        ?>
+    </body>
+</html>
+
+
+
+Custom rules can be added to any of the configuration files or placed in modsecurity directories. We'll place our rules in a separate new file.
+
+nano /etc/modsecurity/modsecurity_custom_rules.conf
+
+Add the following to this file:
+
+SecRule REQUEST_FILENAME "form.php" "id:'400001',chain,deny,log,msg:'Spam detected'"
+SecRule REQUEST_METHOD "POST" chain
+SecRule REQUEST_BODY "@rx (?i:(pills|insurance|rolex))"
+
+Save the file and reload Apache. 
+Open http://yourwebsite.com/form.php in the browser and enter text containing any of these words: pills, insurance, rolex.
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------
+19) Mod Security Container RnD
+------------------------------------------------------------------------------------------------
+-----------------------------------------------
+Excluding Hosts and Directories
+-----------------------------------------------
+
+Sometimes it makes sense to exclude a particular directory or a domain name if it is running an 
+application like phpMyAdmin as modsecurity and will block SQL queries. 
+It is also better to exclude admin backends of CMS applications like WordPress.
+
+
+To disable modsecurity for a complete VirtualHost place the following
+
+<IfModule security2_module>
+    SecRuleEngine Off
+</IfModule>
+
+inside the <VirtualHost> section.
+
+For a particular directory:
+
+<Directory "/var/www/wp-admin">
+    <IfModule security2_module>
+        SecRuleEngine Off
+    </IfModule>
+</Directory>
+
+If you don't want to completely disable modsecurity, use the SecRuleRemoveById directive to remove a particular rule or rule chain by specifying its ID.
+
+<LocationMatch "/wp-admin/update.php">
+    <IfModule security2_module>
+        SecRuleRemoveById 981173
+    </IfModule>
+</LocationMatch>
+------------------------------------------------
+------------------------------------------------
+
+
+
+
+
+-----------------------------------------------
+ SecAuditEngine 
+-----------------------------------------------
+
+
+    On: log all transactions
+    Off: do not log any transactions
+    RelevantOnly: only the log transactions that have triggered a warning or an error, or have a status code that is considered 
+    to be relevant (as determined by the SecAuditLogRelevantStatus directive)
+
+Note : If you need to change the audit log engine configuration on a per-transaction basis (e.g., in response to some transaction data), 
+use the ctl action.
+
+The following example demonstrates how SecAuditEngine is used: 
+
+
+SecAuditEngine RelevantOnly
+SecAuditLog logs/audit/audit.log
+SecAuditLogParts ABCFHZ 
+SecAuditLogType concurrent 
+SecAuditLogStorageDir logs/audit 
+SecAuditLogRelevantStatus ^(?:5|4(?!04))
+
+
+
+-----------------------------------------------
+Available audit log parts:
+-----------------------------------------------
+
+    A: Audit log header (mandatory).
+    B: Request headers.
+    C: Request body (present only if the request body exists and ModSecurity is configured to intercept it).
+    D: Reserved for intermediary response headers; not implemented yet.
+    E: Intermediary response body (present only if ModSecurity is configured to intercept response bodies, and if the audit log engine is configured to record it). Intermediary response body is the same as the actual response body unless ModSecurity intercepts the intermediary response body, in which case the actual response body will contain the error message (either the Apache default error message, or the ErrorDocument page).
+    F: Final response headers (excluding the Date and Server headers, which are always added by Apache in the late stage of content delivery).
+    G: Reserved for the actual response body; not implemented yet.
+    H: Audit log trailer.
+    I: This part is a replacement for part C. It will log the same data as C in all cases except when multipart/form-data encoding in used. In this case, it will log a fake application/x-www-form-urlencoded body that contains the information about parameters but not about the files. This is handy if you don’t want to have (often large) files stored in your audit logs.
+    J: This part contains information about the files uploaded using multipart/form-data encoding.
+    K: This part contains a full list of every rule that matched (one per line) in the order they were matched. The rules are fully qualified and will thus show inherited actions and default operators. Supported as of v2.5.0.
+    Z: Final boundary, signifies the end of the entry (mandatory).
+
+
+
+
+
+-----------------------------------------------
+SecGeoLookupDb
+-----------------------------------------------
+
+Description: Defines the path to the database that will be used for geolocation lookups.
+Syntax: SecGeoLookupDb /path/to/db
+Example Usage: SecGeoLookupDb /path/to/GeoLiteCity.dat
+Scope: Any
+Version: 2.5.0
+ModSecurity relies on the free geolocation databases (GeoLite City and GeoLite Country) that can be obtained from MaxMind http://www.maxmind.com. 
+
+
+SecGeoLookupDb /opt/geoip/GeoIP.dat
+SecGeoLookupDb /opt/geoip/GeoLiteCity.dat
+
+
+wget "http://geolite.maxmind.com/download/geoip/database/GeoLiteCountry/GeoIP.dat.gz"
+wget "http://geolite.maxmind.com/download/geoip/database/GeoLiteCity.dat.gz"
+
+
+
+
+
+
+
+----------------------------------------------------------------------------------------------------------------
+All Ref Sites Use For this all Configuration
+----------------------------------------------------------------------------------------------------------------
+Ref: 
+https://jve.linuxwall.info/ressources/taf/haproxy-aws/
+https://serversforhackers.com/editions/2014/07/15/haproxy/
+http://louwrentius.com/how-to-compile-haproxy-from-source-and-setup-a-basic-configuration.html
+http://www.robertsindall.co.uk/blog/installing-haproxy-on-amazon-linux-ami/
+http://kaivanov.blogspot.in/2012/02/building-ha-load-balancer-with-haproxy.html
+http://www.serverlab.ca/tutorials/linux/network-services/deploying-an-haproxy-load-balancer-on-centos-6/
+https://wiki.gogrid.com/index.php/Customer:Linux_Load_Balancing_with_HAProxy%2BHeartbeat
+http://www.knowarth.com/haproxy-load-balancer-configuration/
+https://blog.openshift.com/how-haproxy-scales-openshift-apps/
+
+
+
+http://blog.shineservers.com/set-mod_security-apache-debianubuntu/
+https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual
+http://orla.wikidot.com/centosapachereverseproxymodsecurity
+http://www.debuntu.org/secure-your-apache2-with-mod-security/
+http://www.opensourceforu.com/2011/08/securing-apache-part-10-mod_security/
+http://www.openlogic.com/wazi/bid/188075/Protect-and-audit-your-web-server-with-ModSecurity
+http://resources.infosecinstitute.com/configuring-modsecurity-firewall-owasp-rules/
+http://apachehelp.filegala.com/category/mod-security/
+https://enekumvenamorublog.wordpress.com/2014/04/11/mod-security-installing-along-with-open-source-rules/
+http://blog.haproxy.com/2012/10/12/scalable-waf-protection-with-haproxy-and-apache-with-modsecurity/
+https://www.digitalocean.com/community/tutorials/how-to-set-up-mod_security-with-apache-on-debian-ubuntu
+https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual
+http://www.packtpub.com/books/content/blocking-common-attacks-using-modsecurity-25-part-3
+
+
+
+
+
+GUI Mod Security
+http://download.huihoo.com/modsecurity/
+http://www.root25.com/search/label/ModSecurity
+
+----------------------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------------------
