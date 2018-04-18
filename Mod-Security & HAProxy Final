@@ -57,7 +57,7 @@ Type 3 Check once following
 
 
 #-------------------------------------
-#Naaptol CHANGES START
+#CHANGES START
 #-------------------------------------
 export PATH=/opt/apache/bin:$PATH
 export PATH=/opt/mysql/bin:$PATH
@@ -65,7 +65,7 @@ export PATH=/opt/php/bin:$PATH
 alias c='clear'
 alias df='df -Th'
 #-------------------------------------
-#Naaptol CHANGES END
+# CHANGES END
 #-------------------------------------
 
 
@@ -451,7 +451,7 @@ Actions Keywords
 If you are getting erros like
 
 [Thu Aug 07 04:22:24 2014] [notice] Apache/2.2.25 (Unix) mod_ssl/2.2.25 OpenSSL/1.0.1e-fips DAV/2 configured -- resuming normal operations
-[Thu Aug 07 04:22:29 2014] [error] [client 192.168.58.11] ModSecurity: Access denied with code 403 (phase 2). Pattern match "(?i:([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?([\\\\d\\\\w]+)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?(?:=|<=>|r?like|sounds\\\\s+like|regexp)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?\\\\2|([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\ ..." at REQUEST_COOKIES:__utmz. [file "/opt/modsecurity-rules/base_rules/modsecurity_crs_41_sql_injection_attacks.conf"] [line "77"] [id "950901"] [rev "2.2.5"] [msg "SQL Injection Attack"] [data "d=D"] [severity "CRITICAL"] [tag "WEB_ATTACK/SQL_INJECTION"] [tag "WASCTC/WASC-19"] [tag "OWASP_TOP_10/A1"] [tag "OWASP_AppSensor/CIE1"] [tag "PCI/6.5.2"] [hostname "kb.naaptol.com"] [uri "/"] [unique_id "U@NhdX8AAAEAABNiEbQAAAAA"]
+[Thu Aug 07 04:22:29 2014] [error] [client 192.168.58.11] ModSecurity: Access denied with code 403 (phase 2). Pattern match "(?i:([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?([\\\\d\\\\w]+)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?(?:=|<=>|r?like|sounds\\\\s+like|regexp)([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\\\(\\\\)]*)?\\\\2|([\\\\s'\\"`\\xc2\\xb4\\xe2\\x80\\x99\\xe2\\x80\\x98\\ ..." at REQUEST_COOKIES:__utmz. [file "/opt/modsecurity-rules/base_rules/modsecurity_crs_41_sql_injection_attacks.conf"] [line "77"] [id "950901"] [rev "2.2.5"] [msg "SQL Injection Attack"] [data "d=D"] [severity "CRITICAL"] [tag "WEB_ATTACK/SQL_INJECTION"] [tag "WASCTC/WASC-19"] [tag "OWASP_TOP_10/A1"] [tag "OWASP_AppSensor/CIE1"] [tag "PCI/6.5.2"] [hostname "kb.devendra.com"] [uri "/"] [unique_id "U@NhdX8AAAEAABNiEbQAAAAA"]
 
 Then First Check What is the Rule ID: For Ex: [id "950901"]
 We can exclude this Rule ID from Our Config.
